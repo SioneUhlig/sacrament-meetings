@@ -193,7 +193,7 @@ function getCurrentSundayDate(today: Date = getWardToday()): string {
   return `${year}-${month}-${day}`;
 }
 
-export async function getMeetings(date?: string): Promise<SacramentMeeting[]> {
+export async function getMeetings(date?: string | null): Promise<SacramentMeeting[]> {
   return meetings
     .filter((meeting) => !date || meeting.date === date)
     .sort((a, b) => b.date.localeCompare(a.date));
