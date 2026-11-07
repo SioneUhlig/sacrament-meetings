@@ -1,7 +1,9 @@
 import type { MeetingType, SacramentMeeting } from './types';
 
-// Server-side fetches need a full URL. Set API_BASE_URL when deploying.
-export const API_BASE_URL = process.env.API_BASE_URL ?? 'http://localhost:3000';
+// Server-side fetches need a full URL. On Vercel, use the deployment's own address.
+export const API_BASE_URL =
+  process.env.API_BASE_URL ??
+  (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000');
 
 const meetings: SacramentMeeting[] = [
   {
@@ -167,7 +169,8 @@ export const MEETING_TYPE_LABELS: Record<MeetingType, string> = {
   general: 'General Conference',
 };
 
-
+// Meeting dates have no time zone, so format them in UTC. Otherwise a US time
+// zone would show the previous day.
 export function formatMeetingDate(date: string): string {
   return new Date(`${date}T00:00:00Z`).toLocaleDateString('en-US', {
     weekday: 'long',
