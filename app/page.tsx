@@ -5,10 +5,10 @@ export default function Home() {
   return (
     <div className="space-y-6">
       <Image
-  src="/images/chapel-hero.jpg"
+  src="/images/church-hero.jpg"
   alt="Brick meetinghouse with a white steeple and a Church of Jesus Christ of Latter-day Saints sign, with red cliffs behind it"
-  width={1600}
-  height={650}
+  width={560}
+  height={340}
   sizes="(max-width: 56rem) 100vw, 56rem"
   preload
   className="h-auto w-full rounded-card"
