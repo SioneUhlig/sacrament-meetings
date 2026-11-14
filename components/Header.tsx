@@ -2,6 +2,7 @@ import Link from 'next/link';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 import NavLinks from '@/components/NavLinks';
+import { WARD_TIMEZONE } from '@/lib/config';
 
 const LINKS = [
   { href: '/', label: 'Home' },
@@ -16,7 +17,7 @@ async function CurrentDate() {
     year: 'numeric',
     month: 'long',
     day: 'numeric',
-    timeZone: 'America/Chicago',
+    timeZone: WARD_TIMEZONE,
   });
 
   return <p className="min-h-5 text-sm text-muted">{date}</p>;
@@ -24,7 +25,7 @@ async function CurrentDate() {
 
 export default function Header() {
   return (
-    <header className="border-b border-border bg-surface">
+    <header className="border-b border-border bg-surface print:hidden">
       <div className="mx-auto flex w-full max-w-page flex-col gap-3 px-4 py-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <Link href="/" className="text-xl font-semibold tracking-tight">

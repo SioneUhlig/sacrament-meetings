@@ -1,7 +1,7 @@
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import MeetingDetail from '@/components/MeetingDetail';
-import { API_BASE_URL } from '@/lib/meetings-db';
+import { API_BASE_URL } from '@/lib/config';
 import type { SacramentMeeting } from '@/lib/types';
 
 async function MeetingContent({ params }: Pick<PageProps<'/meetings/[id]'>, 'params'>) {

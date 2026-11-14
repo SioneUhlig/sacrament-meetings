@@ -1,14 +1,11 @@
 import type { ReactNode } from 'react';
-import { formatMeetingDate, MEETING_TYPE_LABELS } from '@/lib/meetings-db';
-import type { Hymn, SacramentMeeting } from '@/lib/types';
-
-function formatHymn({ number, title }: Hymn) {
-  return `#${number}: ${title}`;
-}
+import PrintButton from '@/components/PrintButton';
+import { formatHymn, formatMeetingDate, hasSacrament, MEETING_TYPE_LABELS } from '@/lib/format';
+import type { SacramentMeeting } from '@/lib/types';
 
 function AgendaSection({ title, children }: { title: string; children: ReactNode }) {
   return (
-    <section className="rounded-card border border-border bg-surface p-5">
+    <section className="rounded-card border border-border bg-surface p-5 print:break-inside-avoid">
       <h2 className="mb-3">{title}</h2>
       {children}
     </section>
@@ -29,8 +26,8 @@ function AgendaList({ items, empty }: { items: string[]; empty: string }) {
 
   return (
     <ul className="list-disc space-y-1 pl-5">
-      {items.map((item, index) => (
-        <li key={index}>{item}</li>
+      {items.map((item) => (
+        <li key={item}>{item}</li>
       ))}
     </ul>
   );
@@ -39,9 +36,12 @@ function AgendaList({ items, empty }: { items: string[]; empty: string }) {
 export default function MeetingDetail({ meeting }: { meeting: SacramentMeeting }) {
   return (
     <article className="space-y-4">
-      <header className="mb-6">
-        <h1>{formatMeetingDate(meeting.date)}</h1>
-        <p className="mt-1 text-muted">{MEETING_TYPE_LABELS[meeting.meetingType]}</p>
+      <header className="mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1>{formatMeetingDate(meeting.date)}</h1>
+          <p className="mt-1 text-muted">{MEETING_TYPE_LABELS[meeting.meetingType]}</p>
+        </div>
+        <PrintButton />
       </header>
 
       <AgendaSection title="Leadership">
@@ -74,11 +74,13 @@ export default function MeetingDetail({ meeting }: { meeting: SacramentMeeting }
         </p>
       </AgendaSection>
 
-      <AgendaSection title="Sacrament">
-        <dl>
-          <AgendaRow label="Sacrament hymn" value={formatHymn(meeting.sacramentHymn)} />
-        </dl>
-      </AgendaSection>
+      {hasSacrament(meeting.meetingType) && meeting.sacramentHymn && (
+        <AgendaSection title="Sacrament">
+          <dl>
+            <AgendaRow label="Sacrament hymn" value={formatHymn(meeting.sacramentHymn)} />
+          </dl>
+        </AgendaSection>
+      )}
 
       <AgendaSection title="Speakers and music">
         {meeting.speakers.length === 0 ? (
@@ -89,8 +91,8 @@ export default function MeetingDetail({ meeting }: { meeting: SacramentMeeting }
           </p>
         ) : (
           <ol className="space-y-3">
-            {meeting.speakers.map((item, index) => (
-              <li key={index}>
+            {meeting.speakers.map((item) => (
+              <li key={`${item.type}:${item.name}`}>
                 <p className="text-xs font-medium uppercase tracking-wide text-muted">
                   {item.type === 'musical-number' ? 'Musical number' : 'Speaker'}
                 </p>

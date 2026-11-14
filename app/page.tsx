@@ -6,7 +6,7 @@ export default function Home() {
     <div className="space-y-6">
       <Image
   src="/images/church-hero.jpg"
-  alt="Brick meetinghouse with a white steeple and a Church of Jesus Christ of Latter-day Saints sign, with red cliffs behind it"
+  alt="Granite sign reading 'The Church of Jesus Christ of Latter-day Saints, Visitors Welcome'"
   width={560}
   height={340}
   sizes="(max-width: 56rem) 100vw, 56rem"

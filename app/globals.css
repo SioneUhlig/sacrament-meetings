@@ -24,6 +24,17 @@
   }
 }
 
+@media print {
+  :root {
+    --background: #ffffff;
+    --surface: #ffffff;
+    --foreground: #000000;
+    --muted: #444444;
+    --border: #cccccc;
+    --accent-soft: #eeeeee;
+  }
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-surface: var(--surface);
@@ -61,6 +72,17 @@
     font-size: 0.875rem;
     line-height: 1.4;
     font-weight: 600;
+  }
+
+  @media print {
+    @page {
+      margin: 1.5cm;
+    }
+
+    main {
+      padding: 0;
+      max-width: none;
+    }
   }
 
   :focus-visible {

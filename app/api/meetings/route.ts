@@ -2,8 +2,9 @@ import type { NextRequest } from 'next/server';
 import { getMeetings } from '@/lib/meetings-db';
 
 export async function GET(request: NextRequest) {
-  const date = request.nextUrl.searchParams.get('date');
-  const meetings = await getMeetings(date);
+  const query = request.nextUrl.searchParams.get('query') ?? '';
+  const page = Number(request.nextUrl.searchParams.get('page')) || 1;
+  const meetings = await getMeetings(query, page);
 
   return Response.json(meetings);
 }

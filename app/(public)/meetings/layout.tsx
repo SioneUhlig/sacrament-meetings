@@ -8,7 +8,7 @@ const LINKS = [
 export default function MeetingsLayout({ children }: LayoutProps<'/meetings'>) {
   return (
     <section className="space-y-6">
-      <div className="border-b border-border">
+      <div className="border-b border-border print:hidden">
         <NavLinks label="Meetings" links={LINKS} variant="section" />
       </div>
       {children}
