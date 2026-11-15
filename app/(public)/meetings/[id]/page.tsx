@@ -1,20 +1,26 @@
+import type { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import MeetingDetail from '@/components/MeetingDetail';
-import { API_BASE_URL } from '@/lib/config';
-import type { SacramentMeeting } from '@/lib/types';
+import { formatMeetingDate } from '@/lib/format';
+import { getMeetingById } from '@/lib/meetings-db';
+
+export async function generateMetadata({
+  params,
+}: PageProps<'/meetings/[id]'>): Promise<Metadata> {
+  const { id } = await params;
+  const meeting = /^\d+$/.test(id) ? await getMeetingById(Number(id)) : undefined;
+
+  return { title: meeting ? formatMeetingDate(meeting.date) : 'Meeting not found' };
+}
 
 async function MeetingContent({ params }: Pick<PageProps<'/meetings/[id]'>, 'params'>) {
   const { id } = await params;
-  const response = await fetch(`${API_BASE_URL}/api/meetings/${encodeURIComponent(id)}`);
 
-  if (response.status === 400 || response.status === 404) notFound();
+  if (!/^\d+$/.test(id)) notFound();
 
-  if (!response.ok) {
-    throw new Error(`Failed to load meeting: ${response.status}`);
-  }
-
-  const meeting: SacramentMeeting = await response.json();
+  const meeting = await getMeetingById(Number(id));
+  if (!meeting) notFound();
 
   return <MeetingDetail meeting={meeting} />;
 }

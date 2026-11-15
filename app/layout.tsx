@@ -9,7 +9,10 @@ const geist = Geist({
 });
 
 export const metadata: Metadata = {
-  title: "Cedar Ridge Ward Sacrament Meetings",
+  title: {
+    template: "%s | Cedar Ridge Ward",
+    default: "Cedar Ridge Ward Sacrament Meetings",
+  },
   description: "Sacrament meeting programs for Cedar Ridge Ward.",
 };
 

@@ -1,3 +1,4 @@
+import type { Metadata } from 'next';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 import Loading from './loading';
@@ -6,6 +7,8 @@ import MeetingSearch from '@/components/MeetingSearch';
 import Pagination from '@/components/Pagination';
 import { getCurrentSundayDate, getMeetings, getMeetingsPageCount } from '@/lib/meetings-db';
 
+export const metadata: Metadata = { title: 'Meetings' };
+
 type SearchParams = PageProps<'/meetings'>['searchParams'];
 
 async function MeetingList({ searchParams }: { searchParams: SearchParams }) {
@@ -13,7 +16,7 @@ async function MeetingList({ searchParams }: { searchParams: SearchParams }) {
 
   const params = await searchParams;
   const query = typeof params.query === 'string' ? params.query : '';
-  const page = Number(params.page) || 1;
+  const page = Math.max(1, Math.floor(Number(params.page) || 1));
 
   const [meetings, totalPages] = await Promise.all([
     getMeetings(query, page),

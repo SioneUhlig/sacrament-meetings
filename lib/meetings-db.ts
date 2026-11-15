@@ -83,6 +83,30 @@ export async function getMeetingsPageCount(query = ''): Promise<number> {
   return Math.ceil(Number(count) / PAGE_SIZE);
 }
 
+export async function getMeetingsByDate(date: string): Promise<SacramentMeeting[]> {
+  const rows = await sql`
+    SELECT
+      id,
+      to_char(date, 'YYYY-MM-DD') AS date,
+      meeting_type    AS "meetingType",
+      presiding,
+      conducting,
+      announcements,
+      opening_hymn    AS "openingHymn",
+      opening_prayer  AS "openingPrayer",
+      ward_business   AS "wardBusiness",
+      stake_business  AS "stakeBusiness",
+      sacrament_hymn  AS "sacramentHymn",
+      speakers,
+      closing_hymn    AS "closingHymn",
+      closing_prayer  AS "closingPrayer"
+    FROM meetings
+    WHERE date = ${date}::date
+  `;
+
+  return rows as SacramentMeeting[];
+}
+
 export async function getMeetingById(
   id: number
 ): Promise<SacramentMeeting | undefined> {
