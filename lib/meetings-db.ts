@@ -10,7 +10,6 @@ function getWardToday(): Date {
   return new Date(new Date().toLocaleString('en-US', { timeZone: WARD_TIMEZONE }));
 }
 
-// The upcoming Sunday, or today if it is Sunday, as 'YYYY-MM-DD'.
 export function getCurrentSundayDate(today: Date = getWardToday()): string {
   const sunday = new Date(today);
   sunday.setDate(today.getDate() + ((7 - today.getDay()) % 7));
@@ -22,84 +21,90 @@ export function getCurrentSundayDate(today: Date = getWardToday()): string {
   return `${year}-${month}-${day}`;
 }
 
-export async function getMeetings(query = '', page = 1): Promise<SacramentMeeting[]> {
+const MEETING_COLUMNS = sql`
+  id,
+  to_char(date, 'YYYY-MM-DD') AS date,
+  meeting_type    AS "meetingType",
+  presiding,
+  conducting,
+  announcements,
+  opening_hymn    AS "openingHymn",
+  opening_prayer  AS "openingPrayer",
+  ward_business   AS "wardBusiness",
+  stake_business  AS "stakeBusiness",
+  sacrament_hymn  AS "sacramentHymn",
+  speakers,
+  closing_hymn    AS "closingHymn",
+  closing_prayer  AS "closingPrayer"
+`;
+
+function searchCondition(query: string) {
   const pattern = `%${query}%`;
-  const offset = (Math.max(page, 1) - 1) * PAGE_SIZE;
+
+  return sql`
+    presiding    ILIKE ${pattern} OR
+    conducting   ILIKE ${pattern} OR
+    meeting_type ILIKE ${pattern} OR
+    to_char(date, 'FMMonth YYYY') ILIKE ${pattern} OR
+    EXISTS (
+      SELECT 1 FROM jsonb_array_elements(speakers) AS s
+      WHERE s->>'name' ILIKE ${pattern}
+    )
+  `;
+}
+
+function meetingOrder() {
   const currentSunday = getCurrentSundayDate();
 
+  return sql`
+    date < ${currentSunday},
+    CASE WHEN date >= ${currentSunday} THEN date END ASC,
+    date DESC
+  `;
+}
+
+export async function getMeetings(query = '', page = 1): Promise<SacramentMeeting[]> {
+  const offset = (Math.max(page, 1) - 1) * PAGE_SIZE;
+
   const rows = await sql`
-    SELECT
-      id,
-      to_char(date, 'YYYY-MM-DD') AS date,
-      meeting_type    AS "meetingType",
-      presiding,
-      conducting,
-      announcements,
-      opening_hymn    AS "openingHymn",
-      opening_prayer  AS "openingPrayer",
-      ward_business   AS "wardBusiness",
-      stake_business  AS "stakeBusiness",
-      sacrament_hymn  AS "sacramentHymn",
-      speakers,
-      closing_hymn    AS "closingHymn",
-      closing_prayer  AS "closingPrayer"
+    SELECT ${MEETING_COLUMNS}
     FROM meetings
-    WHERE
-      presiding    ILIKE ${pattern} OR
-      conducting   ILIKE ${pattern} OR
-      meeting_type ILIKE ${pattern} OR
-      to_char(date, 'FMMonth YYYY') ILIKE ${pattern} OR
-      EXISTS (
-        SELECT 1 FROM jsonb_array_elements(speakers) AS s
-        WHERE s->>'name' ILIKE ${pattern}
-      )
-    ORDER BY
-      date < ${currentSunday},
-      CASE WHEN date >= ${currentSunday} THEN date END ASC,
-      date DESC
+    WHERE ${searchCondition(query)}
+    ORDER BY ${meetingOrder()}
     LIMIT ${PAGE_SIZE} OFFSET ${offset}
   `;
 
   return rows as SacramentMeeting[];
 }
 
-export async function getMeetingsPageCount(query = ''): Promise<number> {
-  const pattern = `%${query}%`;
+export async function getAllMeetings(query = ''): Promise<SacramentMeeting[]> {
+  const rows = await sql`
+    SELECT ${MEETING_COLUMNS}
+    FROM meetings
+    WHERE ${searchCondition(query)}
+    ORDER BY ${meetingOrder()}
+  `;
 
+  return rows as SacramentMeeting[];
+}
+
+export async function getMeetingsCount(query = ''): Promise<number> {
   const [{ count }] = await sql`
     SELECT COUNT(*) AS count
     FROM meetings
-    WHERE
-      presiding    ILIKE ${pattern} OR
-      conducting   ILIKE ${pattern} OR
-      meeting_type ILIKE ${pattern} OR
-      to_char(date, 'FMMonth YYYY') ILIKE ${pattern} OR
-      EXISTS (
-        SELECT 1 FROM jsonb_array_elements(speakers) AS s
-        WHERE s->>'name' ILIKE ${pattern}
-      )
+    WHERE ${searchCondition(query)}
   `;
 
-  return Math.ceil(Number(count) / PAGE_SIZE);
+  return Number(count);
+}
+
+export async function getMeetingsPageCount(query = ''): Promise<number> {
+  return Math.ceil((await getMeetingsCount(query)) / PAGE_SIZE);
 }
 
 export async function getMeetingsByDate(date: string): Promise<SacramentMeeting[]> {
   const rows = await sql`
-    SELECT
-      id,
-      to_char(date, 'YYYY-MM-DD') AS date,
-      meeting_type    AS "meetingType",
-      presiding,
-      conducting,
-      announcements,
-      opening_hymn    AS "openingHymn",
-      opening_prayer  AS "openingPrayer",
-      ward_business   AS "wardBusiness",
-      stake_business  AS "stakeBusiness",
-      sacrament_hymn  AS "sacramentHymn",
-      speakers,
-      closing_hymn    AS "closingHymn",
-      closing_prayer  AS "closingPrayer"
+    SELECT ${MEETING_COLUMNS}
     FROM meetings
     WHERE date = ${date}::date
   `;
@@ -111,21 +116,7 @@ export async function getMeetingById(
   id: number
 ): Promise<SacramentMeeting | undefined> {
   const rows = await sql`
-    SELECT
-      id,
-      to_char(date, 'YYYY-MM-DD') AS date,
-      meeting_type    AS "meetingType",
-      presiding,
-      conducting,
-      announcements,
-      opening_hymn    AS "openingHymn",
-      opening_prayer  AS "openingPrayer",
-      ward_business   AS "wardBusiness",
-      stake_business  AS "stakeBusiness",
-      sacrament_hymn  AS "sacramentHymn",
-      speakers,
-      closing_hymn    AS "closingHymn",
-      closing_prayer  AS "closingPrayer"
+    SELECT ${MEETING_COLUMNS}
     FROM meetings
     WHERE id = ${id}
   `;
@@ -133,15 +124,22 @@ export async function getMeetingById(
   return rows[0] as SacramentMeeting | undefined;
 }
 
-export async function getCurrentMeeting(): Promise<SacramentMeeting | undefined> {
-  const rows = await sql`
-    SELECT id FROM meetings WHERE date = ${getCurrentSundayDate()}
-  `;
-
-  return rows[0] ? getMeetingById(rows[0].id) : undefined;
+export async function meetingExists(id: number): Promise<boolean> {
+  const rows = await sql`SELECT 1 FROM meetings WHERE id = ${id} LIMIT 1`;
+  return rows.length > 0;
 }
 
-// Week 04: these get wired to the database when the forms are built.
+export async function getCurrentMeeting(): Promise<SacramentMeeting | undefined> {
+  const rows = await sql`
+    SELECT ${MEETING_COLUMNS}
+    FROM meetings
+    WHERE date = ${getCurrentSundayDate()}::date
+    LIMIT 1
+  `;
+
+  return rows[0] as SacramentMeeting | undefined;
+}
+
 export async function addMeeting(
   meeting: Omit<SacramentMeeting, 'id'>
 ): Promise<SacramentMeeting> {

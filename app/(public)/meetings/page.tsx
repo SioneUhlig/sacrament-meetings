@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 import Loading from './loading';
@@ -22,6 +23,13 @@ async function MeetingList({ searchParams }: { searchParams: SearchParams }) {
     getMeetings(query, page),
     getMeetingsPageCount(query),
   ]);
+
+  if (totalPages > 0 && page > totalPages) {
+    const lastPage = new URLSearchParams();
+    if (query) lastPage.set('query', query);
+    lastPage.set('page', String(totalPages));
+    redirect(`/meetings?${lastPage.toString()}`);
+  }
 
   const currentSunday = getCurrentSundayDate();
 
@@ -51,7 +59,6 @@ export default function MeetingsPage({ searchParams }: PageProps<'/meetings'>) {
   return (
     <div className="space-y-4">
       <h1>Sacrament Meetings</h1>
-      {/* Both read the URL, so cacheComponents requires them inside Suspense. */}
       <Suspense>
         <MeetingSearch />
       </Suspense>

@@ -1,9 +1,14 @@
 import type { NextRequest } from 'next/server';
-import { getMeetings, getMeetingsByDate } from '@/lib/meetings-db';
+import {
+  getAllMeetings,
+  getMeetings,
+  getMeetingsByDate,
+  getMeetingsCount,
+  PAGE_SIZE,
+} from '@/lib/meetings-db';
 
 function isValidDate(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
-  // Rejects dates like 2026-02-31 that look right but don't exist
   const parsed = new Date(`${value}T00:00:00Z`);
   return !isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
 }
@@ -23,6 +28,27 @@ export async function GET(request: NextRequest) {
   }
 
   const query = searchParams.get('query') ?? '';
-  const page = Math.max(1, Math.floor(Number(searchParams.get('page')) || 1));
-  return Response.json(await getMeetings(query, page));
+  const pageParam = searchParams.get('page');
+
+  if (pageParam === null) {
+    return Response.json(await getAllMeetings(query));
+  }
+
+  if (!/^\d+$/.test(pageParam) || Number(pageParam) < 1) {
+    return Response.json({ error: 'page must be a whole number of 1 or more' }, { status: 400 });
+  }
+
+  const page = Number(pageParam);
+  const [meetings, total] = await Promise.all([
+    getMeetings(query, page),
+    getMeetingsCount(query),
+  ]);
+
+  return Response.json({
+    meetings,
+    page,
+    pageSize: PAGE_SIZE,
+    total,
+    totalPages: Math.ceil(total / PAGE_SIZE),
+  });
 }

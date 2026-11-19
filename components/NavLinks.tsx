@@ -4,10 +4,11 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Suspense } from 'react';
 
-type NavLink = {
+export type NavLink = {
   href: string;
   label: string;
   matchNested?: boolean;
+  alsoActiveFor?: string[];
 };
 
 type NavLinksProps = {
@@ -33,7 +34,8 @@ function isActive(link: NavLink, pathname: string | null): boolean {
   if (pathname === null) return false;
   return (
     pathname === link.href ||
-    (link.matchNested === true && pathname.startsWith(`${link.href}/`))
+    (link.matchNested === true && pathname.startsWith(`${link.href}/`)) ||
+    (link.alsoActiveFor?.includes(pathname) ?? false)
   );
 }
 
@@ -78,7 +80,6 @@ function ActiveLinkList({ links, variant }: { links: NavLink[]; variant: 'main' 
 export default function NavLinks({ label, links, variant = 'main' }: NavLinksProps) {
   return (
     <nav aria-label={label}>
-      {/* usePathname can suspend during prerendering on routes with dynamic params. */}
       <Suspense fallback={<LinkList links={links} variant={variant} pathname={null} />}>
         <ActiveLinkList links={links} variant={variant} />
       </Suspense>
