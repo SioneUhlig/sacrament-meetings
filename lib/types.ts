@@ -2,7 +2,8 @@ export type MeetingType =
   | 'testimony'
   | 'regular'
   | 'stake'
-  | 'general';
+  | 'general'
+  | 'special';
 
 export interface Hymn {
   number: number;
@@ -30,7 +31,7 @@ export interface SacramentMeeting {
   openingPrayer: string;
   wardBusiness: WardBusinessItem[];
   stakeBusiness: boolean;
-  sacramentHymn: Hymn;
+  sacramentHymn?: Hymn; // Only regular and testimony meetings have the sacrament
   speakers: SpeakerItem[];
   closingHymn: Hymn;
   closingPrayer: string;
