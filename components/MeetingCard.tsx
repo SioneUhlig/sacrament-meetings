@@ -1,4 +1,6 @@
 import Link from 'next/link';
+import DeleteMeetingButton from '@/components/DeleteMeetingButton';
+import { deleteMeeting } from '@/lib/actions';
 import { formatMeetingDate, MEETING_TYPE_LABELS } from '@/lib/format';
 import type { SacramentMeeting } from '@/lib/types';
 
@@ -12,6 +14,8 @@ export default function MeetingCard({
   const speakers = meeting.speakers
     .filter((item) => item.type === 'speaker')
     .map((item) => item.name);
+  const dateLabel = formatMeetingDate(meeting.date);
+  const deleteMeetingWithId = deleteMeeting.bind(null, meeting.id);
 
   return (
     <article className={`relative rounded-card border ${isCurrent ? 'border-accent' : 'border-border'} bg-surface p-5 transition-colors hover:border-accent has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-accent`}>
@@ -23,7 +27,7 @@ export default function MeetingCard({
             href={`/meetings/${meeting.id}`}
             className="after:absolute after:inset-0 after:rounded-card focus-visible:outline-none"
           >
-            {formatMeetingDate(meeting.date)}
+            {dateLabel}
           </Link>
         </h2>
         <div className="flex flex-wrap gap-2">
@@ -41,6 +45,17 @@ export default function MeetingCard({
       {speakers.length > 0 && (
         <p className="mt-1 text-sm text-muted">Speakers: {speakers.join(', ')}</p>
       )}
+      {/* relative z-10 lifts these controls above the card's stretched link. */}
+      <div className="relative z-10 mt-4 flex flex-wrap items-center gap-2 print:hidden">
+        <Link
+          href={`/meetings/${meeting.id}/edit`}
+          aria-label={`Edit meeting on ${dateLabel}`}
+          className="rounded-md border border-border px-3 py-1 text-sm font-medium hover:border-accent"
+        >
+          Edit
+        </Link>
+        <DeleteMeetingButton action={deleteMeetingWithId} meetingLabel={dateLabel} />
+      </div>
     </article>
   );
 }

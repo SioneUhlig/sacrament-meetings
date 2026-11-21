@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
@@ -58,7 +59,15 @@ async function MeetingList({ searchParams }: { searchParams: SearchParams }) {
 export default function MeetingsPage({ searchParams }: PageProps<'/meetings'>) {
   return (
     <div className="space-y-4">
-      <h1>Sacrament Meetings</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <h1>Sacrament Meetings</h1>
+        <Link
+          href="/meetings/new"
+          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground"
+        >
+          New meeting
+        </Link>
+      </div>
       <Suspense>
         <MeetingSearch />
       </Suspense>

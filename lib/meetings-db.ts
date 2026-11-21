@@ -140,23 +140,78 @@ export async function getCurrentMeeting(): Promise<SacramentMeeting | undefined>
   return rows[0] as SacramentMeeting | undefined;
 }
 
+function json(value: unknown): string {
+  return JSON.stringify(value);
+}
+
 export async function addMeeting(
   meeting: Omit<SacramentMeeting, 'id'>
 ): Promise<SacramentMeeting> {
-  void meeting;
-  throw new Error('addMeeting is not implemented yet');
+  const rows = await sql`
+    INSERT INTO meetings (
+      date,
+      meeting_type,
+      presiding,
+      conducting,
+      announcements,
+      opening_hymn,
+      opening_prayer,
+      ward_business,
+      stake_business,
+      sacrament_hymn,
+      speakers,
+      closing_hymn,
+      closing_prayer
+    )
+    VALUES (
+      ${meeting.date}::date,
+      ${meeting.meetingType},
+      ${meeting.presiding},
+      ${meeting.conducting},
+      ${meeting.announcements ?? []}::text[],
+      ${json(meeting.openingHymn)}::jsonb,
+      ${meeting.openingPrayer},
+      ${json(meeting.wardBusiness)}::jsonb,
+      ${meeting.stakeBusiness},
+      ${meeting.sacramentHymn ? json(meeting.sacramentHymn) : null}::jsonb,
+      ${json(meeting.speakers)}::jsonb,
+      ${json(meeting.closingHymn)}::jsonb,
+      ${meeting.closingPrayer}
+    )
+    RETURNING ${MEETING_COLUMNS}
+  `;
+
+  return rows[0] as SacramentMeeting;
 }
 
 export async function updateMeeting(
   id: number,
   meeting: Omit<SacramentMeeting, 'id'>
 ): Promise<SacramentMeeting | undefined> {
-  void id;
-  void meeting;
-  throw new Error('updateMeeting is not implemented yet');
+  const rows = await sql`
+    UPDATE meetings
+    SET
+      date           = ${meeting.date}::date,
+      meeting_type   = ${meeting.meetingType},
+      presiding      = ${meeting.presiding},
+      conducting     = ${meeting.conducting},
+      announcements  = ${meeting.announcements ?? []}::text[],
+      opening_hymn   = ${json(meeting.openingHymn)}::jsonb,
+      opening_prayer = ${meeting.openingPrayer},
+      ward_business  = ${json(meeting.wardBusiness)}::jsonb,
+      stake_business = ${meeting.stakeBusiness},
+      sacrament_hymn = ${meeting.sacramentHymn ? json(meeting.sacramentHymn) : null}::jsonb,
+      speakers       = ${json(meeting.speakers)}::jsonb,
+      closing_hymn   = ${json(meeting.closingHymn)}::jsonb,
+      closing_prayer = ${meeting.closingPrayer}
+    WHERE id = ${id}
+    RETURNING ${MEETING_COLUMNS}
+  `;
+
+  return rows[0] as SacramentMeeting | undefined;
 }
 
 export async function deleteMeeting(id: number): Promise<boolean> {
-  void id;
-  throw new Error('deleteMeeting is not implemented yet');
+  const rows = await sql`DELETE FROM meetings WHERE id = ${id} RETURNING id`;
+  return rows.length > 0;
 }
