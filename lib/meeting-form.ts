@@ -33,8 +33,7 @@ export const initialState: State = { message: null, errors: {} };
 
 const MUSIC_PREFIX = 'Music:';
 
-// Speakers are typed one per line as "Name | Topic".
-// A musical number is typed as "Music: Performer | Piece".
+
 export function parseSpeakerLine(line: string): SpeakerItem {
   const isMusic = line.toLowerCase().startsWith(MUSIC_PREFIX.toLowerCase());
   const rest = isMusic ? line.slice(MUSIC_PREFIX.length) : line;
@@ -59,7 +58,7 @@ export function splitLines(value: string): string[] {
     .filter(Boolean);
 }
 
-function hymnValues(hymn: Hymn | undefined) {
+function hymnValues(hymn: Hymn | null | undefined) {
   return {
     number: hymn ? String(hymn.number) : '',
     title: hymn?.title ?? '',
@@ -76,7 +75,7 @@ export function meetingToFormValues(meeting: SacramentMeeting): MeetingFormValue
     meetingType: meeting.meetingType,
     presiding: meeting.presiding,
     conducting: meeting.conducting,
-    announcements: (meeting.announcements ?? []).join('\n'),
+    announcements: meeting.announcements.join('\n'),
     openingHymnNumber: opening.number,
     openingHymnTitle: opening.title,
     openingPrayer: meeting.openingPrayer,

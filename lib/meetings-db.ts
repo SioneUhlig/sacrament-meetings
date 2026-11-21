@@ -1,24 +1,33 @@
 import { neon } from '@neondatabase/serverless';
+import { cache } from 'react';
 import { WARD_TIMEZONE } from './config';
-import type { SacramentMeeting } from './types';
+import { MEETING_TYPE_LABELS } from './format';
+import type { MeetingType, SacramentMeeting } from './types';
 
 const sql = neon(process.env.DATABASE_URL!);
 
 export const PAGE_SIZE = 5;
 
-function getWardToday(): Date {
-  return new Date(new Date().toLocaleString('en-US', { timeZone: WARD_TIMEZONE }));
-}
+const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-export function getCurrentSundayDate(today: Date = getWardToday()): string {
-  const sunday = new Date(today);
-  sunday.setDate(today.getDate() + ((7 - today.getDay()) % 7));
 
-  const year = sunday.getFullYear();
-  const month = String(sunday.getMonth() + 1).padStart(2, '0');
-  const day = String(sunday.getDate()).padStart(2, '0');
+export function getCurrentSundayDate(now: Date = new Date()): string {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: WARD_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    weekday: 'short',
+  }).formatToParts(now);
 
-  return `${year}-${month}-${day}`;
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? '';
+
+  const weekday = WEEKDAYS.indexOf(part('weekday'));
+  const wardToday = Date.UTC(Number(part('year')), Number(part('month')) - 1, Number(part('day')));
+  const daysUntilSunday = (7 - weekday) % 7;
+
+  return new Date(wardToday + daysUntilSunday * 86_400_000).toISOString().slice(0, 10);
 }
 
 const MEETING_COLUMNS = sql`
@@ -27,7 +36,7 @@ const MEETING_COLUMNS = sql`
   meeting_type    AS "meetingType",
   presiding,
   conducting,
-  announcements,
+  COALESCE(announcements, '{}') AS announcements,
   opening_hymn    AS "openingHymn",
   opening_prayer  AS "openingPrayer",
   ward_business   AS "wardBusiness",
@@ -38,13 +47,27 @@ const MEETING_COLUMNS = sql`
   closing_prayer  AS "closingPrayer"
 `;
 
-function searchCondition(query: string) {
-  const pattern = `%${query}%`;
+
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, '\\$&');
+}
+
+
+function matchingMeetingTypes(query: string): MeetingType[] {
+  const needle = query.toLowerCase();
+  return (Object.entries(MEETING_TYPE_LABELS) as [MeetingType, string][])
+    .filter(([type, label]) => type.includes(needle) || label.toLowerCase().includes(needle))
+    .map(([type]) => type);
+}
+
+function searchCondition(rawQuery: string) {
+  const query = rawQuery.trim();
+  const pattern = `%${escapeLike(query)}%`;
 
   return sql`
     presiding    ILIKE ${pattern} OR
     conducting   ILIKE ${pattern} OR
-    meeting_type ILIKE ${pattern} OR
+    meeting_type = ANY(${matchingMeetingTypes(query)}::text[]) OR
     to_char(date, 'FMMonth YYYY') ILIKE ${pattern} OR
     EXISTS (
       SELECT 1 FROM jsonb_array_elements(speakers) AS s
@@ -89,13 +112,13 @@ export async function getAllMeetings(query = ''): Promise<SacramentMeeting[]> {
 }
 
 export async function getMeetingsCount(query = ''): Promise<number> {
-  const [{ count }] = await sql`
+  const rows = await sql`
     SELECT COUNT(*) AS count
     FROM meetings
     WHERE ${searchCondition(query)}
   `;
 
-  return Number(count);
+  return Number(rows[0]?.count ?? 0);
 }
 
 export async function getMeetingsPageCount(query = ''): Promise<number> {
@@ -112,17 +135,18 @@ export async function getMeetingsByDate(date: string): Promise<SacramentMeeting[
   return rows as SacramentMeeting[];
 }
 
-export async function getMeetingById(
-  id: number
-): Promise<SacramentMeeting | undefined> {
-  const rows = await sql`
-    SELECT ${MEETING_COLUMNS}
-    FROM meetings
-    WHERE id = ${id}
-  `;
 
-  return rows[0] as SacramentMeeting | undefined;
-}
+export const getMeetingById = cache(
+  async (id: number): Promise<SacramentMeeting | undefined> => {
+    const rows = await sql`
+      SELECT ${MEETING_COLUMNS}
+      FROM meetings
+      WHERE id = ${id}
+    `;
+
+    return rows[0] as SacramentMeeting | undefined;
+  }
+);
 
 export async function meetingExists(id: number): Promise<boolean> {
   const rows = await sql`SELECT 1 FROM meetings WHERE id = ${id} LIMIT 1`;
@@ -168,7 +192,7 @@ export async function addMeeting(
       ${meeting.meetingType},
       ${meeting.presiding},
       ${meeting.conducting},
-      ${meeting.announcements ?? []}::text[],
+      ${meeting.announcements}::text[],
       ${json(meeting.openingHymn)}::jsonb,
       ${meeting.openingPrayer},
       ${json(meeting.wardBusiness)}::jsonb,
@@ -195,7 +219,7 @@ export async function updateMeeting(
       meeting_type   = ${meeting.meetingType},
       presiding      = ${meeting.presiding},
       conducting     = ${meeting.conducting},
-      announcements  = ${meeting.announcements ?? []}::text[],
+      announcements  = ${meeting.announcements}::text[],
       opening_hymn   = ${json(meeting.openingHymn)}::jsonb,
       opening_prayer = ${meeting.openingPrayer},
       ward_business  = ${json(meeting.wardBusiness)}::jsonb,

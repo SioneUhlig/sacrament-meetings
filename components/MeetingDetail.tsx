@@ -26,8 +26,9 @@ function AgendaList({ items, empty }: { items: string[]; empty: string }) {
 
   return (
     <ul className="list-disc space-y-1 pl-5">
-      {items.map((item) => (
-        <li key={item}>{item}</li>
+      {/* Index keys: the list is static and lines can repeat. */}
+      {items.map((item, index) => (
+        <li key={index}>{item}</li>
       ))}
     </ul>
   );
@@ -52,7 +53,7 @@ export default function MeetingDetail({ meeting }: { meeting: SacramentMeeting }
       </AgendaSection>
 
       <AgendaSection title="Announcements">
-        <AgendaList items={meeting.announcements ?? []} empty="No announcements" />
+        <AgendaList items={meeting.announcements} empty="No announcements" />
       </AgendaSection>
 
       <AgendaSection title="Opening">
@@ -91,8 +92,9 @@ export default function MeetingDetail({ meeting }: { meeting: SacramentMeeting }
           </p>
         ) : (
           <ol className="space-y-3">
-            {meeting.speakers.map((item) => (
-              <li key={`${item.type}:${item.name}`}>
+            {/* The same person or group can appear twice, so include the position. */}
+            {meeting.speakers.map((item, index) => (
+              <li key={`${index}-${item.type}-${item.name}`}>
                 <p className="text-xs font-medium uppercase tracking-wide text-muted">
                   {item.type === 'musical-number' ? 'Musical number' : 'Speaker'}
                 </p>

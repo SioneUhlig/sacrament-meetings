@@ -4,6 +4,7 @@ import { Suspense } from 'react';
 import MeetingForm from '@/components/MeetingForm';
 import { updateMeeting } from '@/lib/actions';
 import { formatMeetingDate } from '@/lib/format';
+import { parseMeetingId } from '@/lib/ids';
 import { meetingToFormValues } from '@/lib/meeting-form';
 import { getMeetingById } from '@/lib/meetings-db';
 
@@ -12,14 +13,12 @@ export const metadata: Metadata = { title: 'Edit Meeting' };
 async function EditMeetingContent({
   params,
 }: Pick<PageProps<'/meetings/[id]/edit'>, 'params'>) {
-  const { id } = await params;
+  const id = parseMeetingId((await params).id);
+  if (id === null) notFound();
 
-  if (!/^\d+$/.test(id)) notFound();
-
-  const meeting = await getMeetingById(Number(id));
+  const meeting = await getMeetingById(id);
   if (!meeting) notFound();
 
-  // Bind the id from the URL so the action knows which meeting to update.
   const updateMeetingWithId = updateMeeting.bind(null, meeting.id);
 
   return (

@@ -3,10 +3,16 @@
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 
-export default function Pagination({ totalPages }: { totalPages: number }) {
+export default function Pagination({
+  currentPage,
+  totalPages,
+}: {
+  currentPage: number;
+  totalPages: number;
+}) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const currentPage = Math.max(1, Math.floor(Number(searchParams.get('page')) || 1));
+
   function createPageURL(page: number) {
     const params = new URLSearchParams(searchParams);
     params.set('page', String(page));
@@ -17,8 +23,8 @@ export default function Pagination({ totalPages }: { totalPages: number }) {
 
   const linkClass =
     'rounded-md border border-border bg-surface px-4 py-2 text-sm font-medium hover:border-accent';
-  const disabledClass =
-    'rounded-md border border-border px-4 py-2 text-sm text-muted opacity-50';
+  const placeholderClass =
+    'rounded-md border border-dashed border-border px-4 py-2 text-sm text-muted';
 
   return (
     <nav aria-label="Pagination" className="flex items-center justify-between gap-4">
@@ -27,7 +33,7 @@ export default function Pagination({ totalPages }: { totalPages: number }) {
           Previous
         </Link>
       ) : (
-        <span aria-disabled="true" className={disabledClass}>Previous</span>
+        <span aria-hidden="true" className={placeholderClass}>Previous</span>
       )}
 
       <p className="text-sm">
@@ -39,7 +45,7 @@ export default function Pagination({ totalPages }: { totalPages: number }) {
           Next
         </Link>
       ) : (
-        <span aria-disabled="true" className={disabledClass}>Next</span>
+        <span aria-hidden="true" className={placeholderClass}>Next</span>
       )}
     </nav>
   );

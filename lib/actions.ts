@@ -4,6 +4,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
 import { hasSacrament } from './format';
+import { isValidMeetingId } from './ids';
 import {
   MEETING_FIELDS,
   parseSpeakerLine,
@@ -20,6 +21,8 @@ import {
 import type { MeetingType, SacramentMeeting } from './types';
 
 const MEETING_TYPES = ['regular', 'testimony', 'stake', 'general', 'special'] as const satisfies readonly MeetingType[];
+
+const MAX_LIST_LENGTH = 5000;
 
 const requiredName = (label: string) =>
   z
@@ -42,45 +45,65 @@ const hymnTitle = (label: string) =>
     .min(1, { error: `Enter the ${label} title.` })
     .max(150, { error: `The ${label} title must be 150 characters or fewer.` });
 
+const lineList = (label: string) =>
+  z
+    .string()
+    .max(MAX_LIST_LENGTH, { error: `${label} must be ${MAX_LIST_LENGTH} characters or fewer.` });
+
+function isSunday(isoDate: string): boolean {
+  return new Date(`${isoDate}T00:00:00Z`).getUTCDay() === 0;
+}
+
+const sacramentHymnNumber = hymnNumber('sacrament hymn');
+const sacramentHymnTitle = hymnTitle('sacrament hymn');
+
 const MeetingFormSchema = z
   .object({
-    date: z.iso.date({ error: 'Enter a valid meeting date.' }),
+    date: z.iso
+      .date({ error: 'Enter a valid meeting date.' })
+      .refine(isSunday, { error: 'Choose a Sunday. Sacrament meetings are held on Sundays.' }),
     meetingType: z.enum(MEETING_TYPES, { error: 'Choose a meeting type.' }),
     presiding: requiredName('presiding leader'),
     conducting: requiredName('conducting leader'),
-    announcements: z.string().transform(splitLines),
+    announcements: lineList('Announcements').transform(splitLines),
     openingHymnNumber: hymnNumber('opening hymn'),
     openingHymnTitle: hymnTitle('opening hymn'),
     openingPrayer: requiredName('opening prayer'),
-    wardBusiness: z.string().transform(splitLines),
+    wardBusiness: lineList('Ward business').transform(splitLines),
     stakeBusiness: z.string().transform((value) => value === 'on'),
     sacramentHymnNumber: z.string().trim(),
     sacramentHymnTitle: z.string().trim(),
-    speakers: z.string().transform(splitLines),
+    // Kept as raw text so error messages can point at the real line number.
+    speakers: lineList('Speakers and music'),
     closingHymnNumber: hymnNumber('closing hymn'),
     closingHymnTitle: hymnTitle('closing hymn'),
     closingPrayer: requiredName('closing prayer'),
   })
   .superRefine((data, ctx) => {
     if (hasSacrament(data.meetingType)) {
-      const number = Number(data.sacramentHymnNumber);
-      if (!Number.isInteger(number) || number < 1) {
+      const number = sacramentHymnNumber.safeParse(data.sacramentHymnNumber);
+      if (!number.success) {
         ctx.addIssue({
           code: 'custom',
           path: ['sacramentHymnNumber'],
-          message: 'Enter the sacrament hymn number. Regular and testimony meetings need one.',
+          message: `${number.error.issues[0].message} Regular and testimony meetings need one.`,
         });
       }
-      if (!data.sacramentHymnTitle) {
+      const title = sacramentHymnTitle.safeParse(data.sacramentHymnTitle);
+      if (!title.success) {
         ctx.addIssue({
           code: 'custom',
           path: ['sacramentHymnTitle'],
-          message: 'Enter the sacrament hymn title. Regular and testimony meetings need one.',
+          message: `${title.error.issues[0].message} Regular and testimony meetings need one.`,
         });
       }
     }
 
-    const missingName = data.speakers.findIndex((line) => !parseSpeakerLine(line).name);
+    // Count every line, including blank ones, so "Line 3" matches what the user sees.
+    const lines = data.speakers.split(/\r?\n/);
+    const missingName = lines.findIndex(
+      (line) => line.trim() !== '' && !parseSpeakerLine(line.trim()).name
+    );
     if (missingName !== -1) {
       ctx.addIssue({
         code: 'custom',
@@ -114,8 +137,8 @@ function toMeeting(data: MeetingFormData): Omit<SacramentMeeting, 'id'> {
     stakeBusiness: data.stakeBusiness,
     sacramentHymn: hasSacrament(data.meetingType)
       ? { number: Number(data.sacramentHymnNumber), title: data.sacramentHymnTitle }
-      : undefined,
-    speakers: data.speakers.map(parseSpeakerLine),
+      : null,
+    speakers: splitLines(data.speakers).map(parseSpeakerLine),
     closingHymn: { number: data.closingHymnNumber, title: data.closingHymnTitle },
     closingPrayer: data.closingPrayer,
   };
@@ -147,10 +170,6 @@ const duplicateDateState = (values: MeetingFormValues): State => ({
   values,
 });
 
-function isValidId(id: number): boolean {
-  return Number.isInteger(id) && id > 0;
-}
-
 export async function createMeeting(prevState: State, formData: FormData): Promise<State> {
   const validated = validate(formData);
   if (!validated.ok) return validated.state;
@@ -171,7 +190,7 @@ export async function updateMeeting(
   prevState: State,
   formData: FormData
 ): Promise<State> {
-  if (!isValidId(id)) {
+  if (!isValidMeetingId(id)) {
     return { message: 'This meeting could not be found.', values: readFormValues(formData) };
   }
 
@@ -199,15 +218,20 @@ export async function updateMeeting(
 }
 
 export async function deleteMeeting(id: number): Promise<void> {
-  if (!isValidId(id)) {
+  if (!isValidMeetingId(id)) {
     throw new Error('That meeting could not be found.');
   }
 
+  let deleted: boolean;
   try {
-    await deleteMeetingFromDb(id);
+    deleted = await deleteMeetingFromDb(id);
   } catch (error) {
     console.error(`Database error: failed to delete meeting ${id}.`, error);
     throw new Error('We could not delete the meeting. Please try again.');
+  }
+
+  if (!deleted) {
+    console.warn(`Delete requested for meeting ${id}, but it no longer exists.`);
   }
 
   revalidatePath('/meetings', 'layout');

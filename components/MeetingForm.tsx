@@ -146,9 +146,7 @@ export default function MeetingForm({ action, defaultValues = {}, submitLabel }:
   };
 
   return (
-    // noValidate lets the server-side Zod messages show instead of the browser's
-    // built-in popups, so every user gets the same accessible error text.
-    <form action={formAction} noValidate className="space-y-6" aria-describedby="form-message">
+    <form action={formAction} noValidate className="space-y-6">
       <div className="grid gap-4 sm:grid-cols-2">
         <Field field="date" label="Meeting date" errors={errors.date}>
           {textInput('date', { type: 'date' })}

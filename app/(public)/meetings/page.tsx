@@ -1,57 +1,55 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
-import { redirect } from 'next/navigation';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 import Loading from './loading';
 import MeetingCard from '@/components/MeetingCard';
 import MeetingSearch from '@/components/MeetingSearch';
 import Pagination from '@/components/Pagination';
-import { getCurrentSundayDate, getMeetings, getMeetingsPageCount } from '@/lib/meetings-db';
+import { getCurrentSundayDate, getMeetings, getMeetingsCount, PAGE_SIZE } from '@/lib/meetings-db';
 
 export const metadata: Metadata = { title: 'Meetings' };
 
 type SearchParams = PageProps<'/meetings'>['searchParams'];
 
+function resultSummary(total: number, query: string): string {
+  const noun = total === 1 ? 'meeting' : 'meetings';
+  if (query) return total === 0 ? `No meetings match "${query}"` : `${total} ${noun} match "${query}"`;
+  return total === 0 ? 'No meetings yet' : `${total} ${noun}`;
+}
+
 async function MeetingList({ searchParams }: { searchParams: SearchParams }) {
   await connection();
 
   const params = await searchParams;
-  const query = typeof params.query === 'string' ? params.query : '';
-  const page = Math.max(1, Math.floor(Number(params.page) || 1));
+  const query = typeof params.query === 'string' ? params.query.trim() : '';
+  const requestedPage = Math.max(1, Math.floor(Number(params.page) || 1));
 
-  const [meetings, totalPages] = await Promise.all([
-    getMeetings(query, page),
-    getMeetingsPageCount(query),
-  ]);
+  const total = await getMeetingsCount(query);
+  const totalPages = Math.ceil(total / PAGE_SIZE);
+  const page = Math.min(requestedPage, Math.max(totalPages, 1));
 
-  if (totalPages > 0 && page > totalPages) {
-    const lastPage = new URLSearchParams();
-    if (query) lastPage.set('query', query);
-    lastPage.set('page', String(totalPages));
-    redirect(`/meetings?${lastPage.toString()}`);
-  }
-
+  const meetings = total > 0 ? await getMeetings(query, page) : [];
   const currentSunday = getCurrentSundayDate();
-
-  if (meetings.length === 0) {
-    return (
-      <p className="text-muted">
-        {query ? `No meetings match "${query}"` : 'No meetings yet'}
-      </p>
-    );
-  }
 
   return (
     <>
-      <ul className="space-y-4">
-        {meetings.map((meeting) => (
-          <li key={meeting.id}>
-            <MeetingCard meeting={meeting} isCurrent={meeting.date === currentSunday} />
-          </li>
-        ))}
-      </ul>
-      <Pagination totalPages={totalPages} />
+      {/* Live region so screen-reader users hear the result of each search. */}
+      <p role="status" className="text-sm text-muted">
+        {resultSummary(total, query)}
+      </p>
+      {meetings.length > 0 && (
+        <>
+          <ul className="space-y-4">
+            {meetings.map((meeting) => (
+              <li key={meeting.id}>
+                <MeetingCard meeting={meeting} isCurrent={meeting.date === currentSunday} />
+              </li>
+            ))}
+          </ul>
+          <Pagination currentPage={page} totalPages={totalPages} />
+        </>
+      )}
     </>
   );
 }
