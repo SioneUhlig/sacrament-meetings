@@ -3,12 +3,17 @@ import Link from 'next/link';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
 import Loading from './loading';
+import { getSession } from '@/lib/session';
 import MeetingCard from '@/components/MeetingCard';
 import MeetingSearch from '@/components/MeetingSearch';
 import Pagination from '@/components/Pagination';
 import { getCurrentSundayDate, getMeetings, getMeetingsCount, PAGE_SIZE } from '@/lib/meetings-db';
 
-export const metadata: Metadata = { title: 'Meetings' };
+export const metadata: Metadata = {
+  title: 'Meetings',
+  description:
+    'Search upcoming and past Cedar Ridge Ward sacrament meeting programs by speaker, leader, meeting type, or month.',
+};
 
 type SearchParams = PageProps<'/meetings'>['searchParams'];
 
@@ -29,7 +34,10 @@ async function MeetingList({ searchParams }: { searchParams: SearchParams }) {
   const totalPages = Math.ceil(total / PAGE_SIZE);
   const page = Math.min(requestedPage, Math.max(totalPages, 1));
 
-  const meetings = total > 0 ? await getMeetings(query, page) : [];
+  const [meetings, session] = await Promise.all([
+    total > 0 ? getMeetings(query, page) : [],
+    getSession(),
+  ]);
   const currentSunday = getCurrentSundayDate();
 
   return (
@@ -43,7 +51,11 @@ async function MeetingList({ searchParams }: { searchParams: SearchParams }) {
           <ul className="space-y-4">
             {meetings.map((meeting) => (
               <li key={meeting.id}>
-                <MeetingCard meeting={meeting} isCurrent={meeting.date === currentSunday} />
+                <MeetingCard
+                  meeting={meeting}
+                  isCurrent={meeting.date === currentSunday}
+                  canManage={!!session?.user}
+                />
               </li>
             ))}
           </ul>
@@ -54,17 +66,29 @@ async function MeetingList({ searchParams }: { searchParams: SearchParams }) {
   );
 }
 
+// Only the bishopric sees the "New meeting" button.
+async function NewMeetingLink() {
+  const session = await getSession();
+  if (!session?.user) return null;
+
+  return (
+    <Link
+      href="/meetings/new"
+      className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground"
+    >
+      New meeting
+    </Link>
+  );
+}
+
 export default function MeetingsPage({ searchParams }: PageProps<'/meetings'>) {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h1>Sacrament Meetings</h1>
-        <Link
-          href="/meetings/new"
-          className="rounded-md bg-accent px-4 py-2 text-sm font-medium text-accent-foreground"
-        >
-          New meeting
-        </Link>
+        <Suspense>
+          <NewMeetingLink />
+        </Suspense>
       </div>
       <Suspense>
         <MeetingSearch />

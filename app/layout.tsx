@@ -2,18 +2,37 @@ import type { Metadata } from "next";
 import { Geist } from "next/font/google";
 import Footer from "@/components/Footer";
 import Header from "@/components/Header";
+import { SITE_URL } from "@/lib/config";
 import "./globals.css";
 
 const geist = Geist({
   subsets: ["latin"],
 });
 
+const SITE_NAME = "Cedar Ridge Ward Sacrament Meetings";
+const SITE_DESCRIPTION =
+  "This Sunday's sacrament meeting program and past programs for Cedar Ridge Ward: speakers, hymns, prayers, and announcements.";
+
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
     template: "%s | Cedar Ridge Ward",
-    default: "Cedar Ridge Ward Sacrament Meetings",
+    default: SITE_NAME,
   },
-  description: "Sacrament meeting programs for Cedar Ridge Ward.",
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  openGraph: {
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+    siteName: SITE_NAME,
+    type: "website",
+    locale: "en_US",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

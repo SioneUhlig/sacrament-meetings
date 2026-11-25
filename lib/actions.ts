@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { z } from 'zod';
+import { auth } from '@/auth';
 import { hasSacrament } from './format';
 import { isValidMeetingId } from './ids';
 import {
@@ -19,6 +20,15 @@ import {
   updateMeeting as updateMeetingInDb,
 } from './meetings-db';
 import type { MeetingType, SacramentMeeting } from './types';
+
+// Server actions can be called directly, without the page, so every action
+// that changes data checks for a signed-in user itself.
+async function requireSignedIn(): Promise<void> {
+  const session = await auth();
+  if (!session?.user) {
+    throw new Error('You must be signed in to change meetings.');
+  }
+}
 
 const MEETING_TYPES = ['regular', 'testimony', 'stake', 'general', 'special'] as const satisfies readonly MeetingType[];
 
@@ -171,6 +181,8 @@ const duplicateDateState = (values: MeetingFormValues): State => ({
 });
 
 export async function createMeeting(prevState: State, formData: FormData): Promise<State> {
+  await requireSignedIn();
+
   const validated = validate(formData);
   if (!validated.ok) return validated.state;
 
@@ -190,6 +202,8 @@ export async function updateMeeting(
   prevState: State,
   formData: FormData
 ): Promise<State> {
+  await requireSignedIn();
+
   if (!isValidMeetingId(id)) {
     return { message: 'This meeting could not be found.', values: readFormValues(formData) };
   }
@@ -218,6 +232,8 @@ export async function updateMeeting(
 }
 
 export async function deleteMeeting(id: number): Promise<void> {
+  await requireSignedIn();
+
   if (!isValidMeetingId(id)) {
     throw new Error('That meeting could not be found.');
   }

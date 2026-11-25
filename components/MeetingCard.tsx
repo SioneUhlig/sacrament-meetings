@@ -7,9 +7,11 @@ import type { SacramentMeeting } from '@/lib/types';
 export default function MeetingCard({
   meeting,
   isCurrent = false,
+  canManage = false,
 }: {
   meeting: SacramentMeeting;
   isCurrent?: boolean;
+  canManage?: boolean;
 }) {
   const speakers = meeting.speakers
     .filter((item) => item.type === 'speaker')
@@ -45,17 +47,20 @@ export default function MeetingCard({
       {speakers.length > 0 && (
         <p className="mt-1 text-sm text-muted">Speakers: {speakers.join(', ')}</p>
       )}
-      {/* relative z-10 lifts these controls above the card's stretched link. */}
-      <div className="relative z-10 mt-4 flex flex-wrap items-center gap-2 print:hidden">
-        <Link
-          href={`/meetings/${meeting.id}/edit`}
-          aria-label={`Edit meeting on ${dateLabel}`}
-          className="rounded-md border border-border px-3 py-1 text-sm font-medium hover:border-accent"
-        >
-          Edit
-        </Link>
-        <DeleteMeetingButton action={deleteMeetingWithId} meetingLabel={dateLabel} />
-      </div>
+      {/* Only signed-in bishopric members see Edit and Delete.
+          relative z-10 lifts these controls above the card's stretched link. */}
+      {canManage && (
+        <div className="relative z-10 mt-4 flex flex-wrap items-center gap-2 print:hidden">
+          <Link
+            href={`/meetings/${meeting.id}/edit`}
+            aria-label={`Edit meeting on ${dateLabel}`}
+            className="rounded-md border border-border px-3 py-1 text-sm font-medium hover:border-accent"
+          >
+            Edit
+          </Link>
+          <DeleteMeetingButton action={deleteMeetingWithId} meetingLabel={dateLabel} />
+        </div>
+      )}
     </article>
   );
 }

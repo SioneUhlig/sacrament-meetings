@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { connection } from 'next/server';
 import { Suspense } from 'react';
+import AuthStatus from '@/components/AuthStatus';
 import NavLinks from '@/components/NavLinks';
 import { WARD_TIMEZONE } from '@/lib/config';
 
@@ -35,7 +36,12 @@ export default function Header() {
             <CurrentDate />
           </Suspense>
         </div>
-        <NavLinks label="Main" links={LINKS} />
+        <div className="flex flex-wrap items-center gap-3">
+          <NavLinks label="Main" links={LINKS} />
+          <Suspense fallback={<div className="min-h-9" />}>
+            <AuthStatus />
+          </Suspense>
+        </div>
       </div>
     </header>
   );
